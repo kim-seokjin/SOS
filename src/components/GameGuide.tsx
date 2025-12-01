@@ -9,8 +9,10 @@ import {
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Timer, Gift, Play } from 'lucide-react';
-import worriedGloom from '@/assets/images/worried_gloom2.png';
+import gameGuideIntro from '@/assets/images/game_guide_intro.png';
+import gameGuideRules from '@/assets/images/game_guide_rules.png';
+import gameGuideRanking from '@/assets/images/game_guide_ranking.png';
+import gameGuideReady from '@/assets/images/game_guide_ready.png';
 
 interface GameGuideProps {
     children: React.ReactNode;
@@ -19,24 +21,24 @@ interface GameGuideProps {
 export const GameGuide: React.FC<GameGuideProps> = ({ children }) => {
     const slides = [
         {
-            title: "🧩 SOS",
-            description: "으악! 우리 결혼식에 쓰일 결혼 사진이 다 흩어졌어.\n\n퍼즐을 맞춰서 원래대로 돌려줘!",
-            icon: <img src={worriedGloom} alt="Worried Gloom" className="w-24 h-24 object-contain mb-4 drop-shadow-lg" />
+            title: "🧩 게임 소개",
+            description: "헉! 우리 결혼 사진이 모두 흩어졌어.\n\n퍼즐을 맞춰서 원래대로 돌려줘!",
+            image: gameGuideIntro
         },
         {
             title: "🎮 게임 미션 & 규칙",
             description: "미션은 뒤죽박죽 섞인 3x3 퍼즐 맞추기!\n제한 시간은 딱 60초야.\n\n빠른 손놀림과 집중력이 필요해.",
-            icon: <Timer className="w-16 h-16 text-orange-500 mb-4" />,
+            image: gameGuideRules
         },
         {
             title: "🎁 랭킹 이벤트",
-            description: "실시간으로 다른 하객들과 기록 경쟁을 해봐.\n가장 빨리 성공한 1등부터 3등한테는 신혼여행 다녀와서 특별한 선물을 줄게!",
-            icon: <Gift className="w-16 h-16 text-yellow-400 mb-4" />
+            description: "실시간으로 다른 하객들과 경쟁해봐!\n\n가장 빨리 성공한 1등부터 3등한테는 신혼여행 다녀와서 특별한 선물을 줄게!",
+            image: gameGuideRanking
         },
         {
             title: "준비됐어?",
             description: "지금 바로 도전해서 우리의 소중한 결혼사진을 완성해줘!",
-            icon: <Play className="w-16 h-16 text-green-500 mb-4" />,
+            image: gameGuideReady,
             action: true
         }
     ];
@@ -54,11 +56,15 @@ export const GameGuide: React.FC<GameGuideProps> = ({ children }) => {
                                 <div className="p-1">
                                     <Card className="bg-transparent border-none shadow-none">
                                         <CardContent className="flex flex-col items-center justify-center p-6 md:p-12 text-center min-h-[400px] md:min-h-[500px]">
-                                            <div className="mb-6 md:mb-8 animate-bounce-slow transform scale-125 md:scale-150">
-                                                {slide.icon}
+                                            <div className="mb-6 md:mb-8 w-full max-w-[280px] aspect-video rounded-2xl overflow-hidden shadow-lg mx-auto">
+                                                <img
+                                                    src={slide.image}
+                                                    alt={slide.title}
+                                                    className="aspect-16/9 object-contain"
+                                                />
                                             </div>
                                             <h2 className="text-2xl md:text-4xl font-bold mb-4 md:mb-6 text-white drop-shadow-lg">{slide.title}</h2>
-                                            <p className="text-base md:text-xl text-white/90 whitespace-pre-line mb-6 md:mb-8 leading-relaxed max-w-2xl drop-shadow-md">
+                                            <p className="text-pretty md:text-xl text-white/90 whitespace-pre-line mb-6 md:mb-8 leading-relaxed max-w-2xl drop-shadow-md">
                                                 {slide.description}
                                             </p>
                                             {slide.action && (
