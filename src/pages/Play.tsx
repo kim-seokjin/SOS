@@ -257,7 +257,7 @@ export const Play: React.FC = () => {
                 </div>
             </Card>
 
-            <Dialog open={true} onOpenChange={(open) => !open && setIsWon(false)}>
+            <Dialog open={isWon} onOpenChange={(open) => !open && setIsWon(false)}>
                 <DialogContent className="sm:max-w-md bg-zinc-900 border-zinc-800 text-white">
                     <DialogHeader>
                         <DialogTitle className="text-center text-2xl font-bold">결혼식을 구해줘서 고마워!</DialogTitle>
