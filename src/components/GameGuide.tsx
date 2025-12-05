@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
     Carousel,
     CarouselContent,
@@ -9,6 +9,7 @@ import {
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import gameGuideIntro from '@/assets/images/game_guide_intro.png';
 import gameGuideRules from '@/assets/images/game_guide_rules.png';
 import gameGuideRanking from '@/assets/images/game_guide_ranking.png';
@@ -18,6 +19,24 @@ import { useNavigate } from 'react-router-dom';
 interface GameGuideProps {
     children: React.ReactNode;
 }
+
+const GameGuideImage = ({ src, alt }: { src: string, alt: string }) => {
+    const [isLoading, setIsLoading] = useState(true);
+
+    return (
+        <div className="mb-6 md:mb-8 w-full max-w-[280px] aspect-video rounded-2xl overflow-hidden shadow-lg mx-auto relative bg-zinc-900/50">
+            {isLoading && (
+                <Skeleton className="w-full h-full absolute inset-0" />
+            )}
+            <img
+                src={src}
+                alt={alt}
+                className={`w-full h-full object-contain transition-opacity duration-500 ${isLoading ? 'opacity-0' : 'opacity-100'}`}
+                onLoad={() => setIsLoading(false)}
+            />
+        </div>
+    );
+};
 
 export const GameGuide: React.FC<GameGuideProps> = ({ children }) => {
     const slides = [
@@ -59,13 +78,7 @@ export const GameGuide: React.FC<GameGuideProps> = ({ children }) => {
                                 <div className="p-1">
                                     <Card className="bg-transparent border-none shadow-none">
                                         <CardContent className="flex flex-col items-center justify-center p-6 md:p-12 text-center min-h-[400px] md:min-h-[500px]">
-                                            <div className="mb-6 md:mb-8 w-full max-w-[280px] aspect-video rounded-2xl overflow-hidden shadow-lg mx-auto">
-                                                <img
-                                                    src={slide.image}
-                                                    alt={slide.title}
-                                                    className="aspect-16/9 object-contain"
-                                                />
-                                            </div>
+                                            <GameGuideImage src={slide.image} alt={slide.title} />
                                             <h2 className="text-2xl md:text-4xl font-bold mb-4 md:mb-6 text-white drop-shadow-lg">{slide.title}</h2>
                                             <p className="text-pretty md:text-xl text-white/90 whitespace-pre-line mb-6 md:mb-8 leading-relaxed max-w-2xl drop-shadow-md">
                                                 {slide.description}

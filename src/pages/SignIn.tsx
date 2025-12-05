@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -27,10 +27,17 @@ const signInSchema = z.object({
 
 type SignInFormValues = z.infer<typeof signInSchema>;
 
+import { Skeleton } from "@/components/ui/skeleton";
+
 export const SignIn: React.FC = () => {
     const navigate = useNavigate();
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const [formData, setFormData] = useState<SignInFormValues | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        setIsLoading(false);
+    }, []);
 
     const formatPhoneNumber = (value: string) => {
         const numbers = value.replace(/[^\d]/g, '');
@@ -79,58 +86,72 @@ export const SignIn: React.FC = () => {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-3 md:space-y-6">
-                        <Controller
-                            name="name"
-                            control={control}
-                            render={({ field, fieldState }) => (
-                                <Field data-invalid={fieldState.invalid}>
-                                    <FieldLabel htmlFor="name" className="text-zinc-200 group-data-[invalid=true]/field:text-destructive">이름</FieldLabel>
-                                    <Input
-                                        {...field}
-                                        id="name"
-                                        placeholder="이름을 입력하세요"
-                                        className="bg-zinc-950 border-zinc-800 text-white placeholder:text-zinc-600 focus-visible:ring-zinc-700"
-                                        aria-invalid={fieldState.invalid}
-                                    />
-                                    <FieldError errors={[fieldState.error]} />
-                                </Field>
-                            )}
-                        />
+                    {isLoading ? (
+                        <div className="space-y-3 md:space-y-6">
+                            <div className="space-y-2">
+                                <Skeleton className="h-4 w-10" />
+                                <Skeleton className="h-10 w-full" />
+                            </div>
+                            <div className="space-y-2">
+                                <Skeleton className="h-4 w-16" />
+                                <Skeleton className="h-10 w-full" />
+                            </div>
+                            <Skeleton className="h-16 w-full mt-6" />
+                        </div>
+                    ) : (
+                        <form onSubmit={handleSubmit(onSubmit)} className="space-y-3 md:space-y-6">
+                            <Controller
+                                name="name"
+                                control={control}
+                                render={({ field, fieldState }) => (
+                                    <Field data-invalid={fieldState.invalid}>
+                                        <FieldLabel htmlFor="name" className="text-zinc-200 group-data-[invalid=true]/field:text-destructive">이름</FieldLabel>
+                                        <Input
+                                            {...field}
+                                            id="name"
+                                            placeholder="이름을 입력하세요"
+                                            className="bg-zinc-950 border-zinc-800 text-white placeholder:text-zinc-600 focus-visible:ring-zinc-700"
+                                            aria-invalid={fieldState.invalid}
+                                        />
+                                        <FieldError errors={[fieldState.error]} />
+                                    </Field>
+                                )}
+                            />
 
-                        <Controller
-                            name="phone"
-                            control={control}
-                            render={({ field, fieldState }) => (
-                                <Field data-invalid={fieldState.invalid}>
-                                    <FieldLabel htmlFor="phone" className="text-zinc-200 group-data-[invalid=true]/field:text-destructive">전화번호</FieldLabel>
-                                    <Input
-                                        {...field}
-                                        id="phone"
-                                        type="tel"
-                                        placeholder="010-0000-0000"
-                                        className="bg-zinc-950 border-zinc-800 text-white placeholder:text-zinc-600 focus-visible:ring-zinc-700"
-                                        aria-invalid={fieldState.invalid}
-                                        onChange={(e) => {
-                                            const formatted = formatPhoneNumber(e.target.value);
-                                            field.onChange(formatted);
-                                        }}
-                                    />
-                                    <FieldError errors={[fieldState.error]} />
-                                </Field>
-                            )}
-                        />
+                            <Controller
+                                name="phone"
+                                control={control}
+                                render={({ field, fieldState }) => (
+                                    <Field data-invalid={fieldState.invalid}>
+                                        <FieldLabel htmlFor="phone" className="text-zinc-200 group-data-[invalid=true]/field:text-destructive">전화번호</FieldLabel>
+                                        <Input
+                                            {...field}
+                                            id="phone"
+                                            type="tel"
+                                            placeholder="010-0000-0000"
+                                            className="bg-zinc-950 border-zinc-800 text-white placeholder:text-zinc-600 focus-visible:ring-zinc-700"
+                                            aria-invalid={fieldState.invalid}
+                                            onChange={(e) => {
+                                                const formatted = formatPhoneNumber(e.target.value);
+                                                field.onChange(formatted);
+                                            }}
+                                        />
+                                        <FieldError errors={[fieldState.error]} />
+                                    </Field>
+                                )}
+                            />
 
-                        <Button
-                            type="submit"
-                            className="w-full bg-white text-black hover:bg-zinc-200 font-bold py-5 md:py-6 text-base md:text-lg"
-                        >
-                            입력 완료
-                        </Button>
-                        <p className="text-xs text-zinc-500 text-center break-keep">
-                            ※ 입력한 정보는 경품 지급 후 일괄 삭제됩니다.
-                        </p>
-                    </form>
+                            <Button
+                                type="submit"
+                                className="w-full bg-white text-black hover:bg-zinc-200 font-bold py-5 md:py-6 text-base md:text-lg"
+                            >
+                                입력 완료
+                            </Button>
+                            <p className="text-xs text-zinc-500 text-center break-keep">
+                                ※ 입력한 정보는 경품 지급 후 일괄 삭제됩니다.
+                            </p>
+                        </form>
+                    )}
                 </CardContent>
             </Card>
 

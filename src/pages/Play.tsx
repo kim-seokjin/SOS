@@ -16,6 +16,7 @@ import puzzle2 from '@/assets/puzzles/puzzle2.png';
 import gameGuideSuccess from '@/assets/images/game_guide_success.png';
 import confetti from 'canvas-confetti';
 import { useNavigate } from 'react-router-dom';
+import { Skeleton } from "@/components/ui/skeleton";
 
 const PUZZLE_IMAGES = [puzzle1, puzzle2];
 
@@ -42,11 +43,16 @@ export const Play: React.FC = () => {
     const [isHintActive, setIsHintActive] = useState(false);
     const [hintTimeLeft, setHintTimeLeft] = useState(3000);
     const [hasUsedHint, setHasUsedHint] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
     const swapyRef = useRef<any>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const endTimeRef = useRef<number>(0);
     const navigate = useNavigate();
+
+    useEffect(() => {
+        setIsLoading(false);
+    }, []);
 
     useEffect(() => {
         // Select random image on mount
@@ -60,6 +66,7 @@ export const Play: React.FC = () => {
     }, []);
 
     useEffect(() => {
+        if (isLoading) return; // Don't start timer while loading
         if (isWon || isGameOver || isHintActive) {
             if (timerRef.current) clearInterval(timerRef.current);
             return;
@@ -84,7 +91,7 @@ export const Play: React.FC = () => {
         return () => {
             if (timerRef.current) clearInterval(timerRef.current);
         };
-    }, [isWon, isGameOver, shuffledItems, isHintActive]); // Restart timer when shuffledItems changes (new game)
+    }, [isWon, isGameOver, shuffledItems, isHintActive, isLoading]); // Restart timer when shuffledItems changes (new game)
 
     // Hint Timer
     useEffect(() => {
@@ -110,7 +117,7 @@ export const Play: React.FC = () => {
     }, [isHintActive, hintTimeLeft]);
 
     useEffect(() => {
-        if (containerRef.current && shuffledItems.length > 0) {
+        if (!isLoading && containerRef.current && shuffledItems.length > 0) {
             if (swapyRef.current) {
                 swapyRef.current.destroy();
             }
@@ -124,7 +131,7 @@ export const Play: React.FC = () => {
                 checkWinCondition(event.newSlotItemMap.asObject);
             });
         }
-    }, [shuffledItems, isWon, isGameOver]);
+    }, [shuffledItems, isWon, isGameOver, isLoading]);
 
     useEffect(() => {
         if (isWon) {
@@ -221,9 +228,13 @@ export const Play: React.FC = () => {
                 <div className="mb-3 md:mb-4 w-full">
                     <div className="flex justify-between items-center mb-1">
                         <span className="text-xs font-medium text-zinc-400">남은 시간</span>
-                        <span className={`text-sm font-bold font-mono ${timeLeft <= 10000 ? 'text-red-500 animate-pulse' : 'text-white'}`}>
-                            {formatTime(timeLeft)}
-                        </span>
+                        {isLoading ? (
+                            <Skeleton className="h-5 w-16" />
+                        ) : (
+                            <span className={`text-sm font-bold font-mono ${timeLeft <= 10000 ? 'text-red-500 animate-pulse' : 'text-white'}`}>
+                                {formatTime(timeLeft)}
+                            </span>
+                        )}
                     </div>
                     <div className="w-full bg-zinc-800 rounded-full h-2 md:h-2.5 overflow-hidden">
                         <div
@@ -233,46 +244,53 @@ export const Play: React.FC = () => {
                     </div>
                 </div>
 
-                <div
-                    ref={containerRef}
-                    className="grid grid-cols-3 gap-1 w-full bg-zinc-950 p-1 rounded-lg border border-zinc-800 mb-4 md:mb-6 relative"
-                    style={{ aspectRatio: '1/1' }}
-                >
-                    {isGameOver && !isWon && (
-                        <div className="absolute inset-0 z-10 bg-black/70 flex flex-col items-center justify-center rounded-lg backdrop-blur-sm">
-                            <h2 className="text-2xl md:text-3xl font-bold text-red-500 mb-2">Game Over</h2>
-                            <p className="text-zinc-300 text-sm md:text-base">시간이 초과되었습니다.</p>
-                        </div>
-                    )}
-
-                    {/* We map over SLOTS to create the grid structure. 
-                        The content of each slot is determined by shuffledItems initially, 
-                        but swapy handles the DOM manipulation after that. 
-                        However, for React to render correctly initially, we need to place items in slots.
-                    */}
-                    {SLOTS.map((slot, index) => {
-                        const item = shuffledItems[index];
-                        if (!item) return null;
-
-                        return (
-                            <div key={slot} data-swapy-slot={slot} className="w-full h-full rounded-sm overflow-hidden relative">
-                                <div
-                                    key={item.id}
-                                    data-swapy-item={item.id}
-                                    className="w-full h-full cursor-grab active:cursor-grabbing hover:brightness-110 transition-filter"
-                                    style={{
-                                        backgroundImage: `url(${image})`,
-                                        backgroundSize: '300% 300%',
-                                        backgroundPosition: item.pos
-                                    }}
-                                >
-                                    {/* Number for debugging/easier solving */}
-                                    {/* Number for debugging/easier solving - Removed old hint */}
-                                </div>
+                {isLoading ? (
+                    <div className="grid grid-cols-3 gap-1 w-full bg-zinc-950 p-1 rounded-lg border border-zinc-800 mb-4 md:mb-6" style={{ aspectRatio: '1/1' }}>
+                        {Array.from({ length: 9 }).map((_, i) => (
+                            <Skeleton key={i} className="w-full h-full rounded-sm" />
+                        ))}
+                    </div>
+                ) : (
+                    <div
+                        ref={containerRef}
+                        className="grid grid-cols-3 gap-1 w-full bg-zinc-950 p-1 rounded-lg border border-zinc-800 mb-4 md:mb-6 relative"
+                        style={{ aspectRatio: '1/1' }}
+                    >
+                        {isGameOver && !isWon && (
+                            <div className="absolute inset-0 z-10 bg-black/70 flex flex-col items-center justify-center rounded-lg backdrop-blur-sm">
+                                <h2 className="text-2xl md:text-3xl font-bold text-red-500 mb-2">Game Over</h2>
+                                <p className="text-zinc-300 text-sm md:text-base">시간이 초과되었습니다.</p>
                             </div>
-                        );
-                    })}
-                </div>
+                        )}
+
+                        {/* We map over SLOTS to create the grid structure. 
+                            The content of each slot is determined by shuffledItems initially, 
+                            but swapy handles the DOM manipulation after that. 
+                            However, for React to render correctly initially, we need to place items in slots.
+                        */}
+                        {SLOTS.map((slot, index) => {
+                            const item = shuffledItems[index];
+                            if (!item) return null;
+
+                            return (
+                                <div key={slot} data-swapy-slot={slot} className="w-full h-full rounded-sm overflow-hidden relative">
+                                    <div
+                                        key={item.id}
+                                        data-swapy-item={item.id}
+                                        className="w-full h-full cursor-grab active:cursor-grabbing hover:brightness-110 transition-filter"
+                                        style={{
+                                            backgroundImage: `url(${image})`,
+                                            backgroundSize: '300% 300%',
+                                            backgroundPosition: item.pos
+                                        }}
+                                    >
+                                        {/* Number for debugging/easier solving - Removed old hint */}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
 
                 <div className={isGameOver ? "flex justify-center" : "flex justify-between gap-3"}>
                     {!isGameOver && (
