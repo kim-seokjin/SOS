@@ -27,6 +27,9 @@ const signInSchema = z.object({
 
 type SignInFormValues = z.infer<typeof signInSchema>;
 
+import { api } from '@/lib/api';
+import { useAuthStore } from '@/lib/store/useAuthStore';
+import { toast } from 'sonner';
 import { Skeleton } from "@/components/ui/skeleton";
 
 export const SignIn: React.FC = () => {
@@ -34,6 +37,7 @@ export const SignIn: React.FC = () => {
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const [formData, setFormData] = useState<SignInFormValues | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const setAuth = useAuthStore((state) => state.setAuth);
 
     useEffect(() => {
         setIsLoading(false);
@@ -62,12 +66,27 @@ export const SignIn: React.FC = () => {
         setIsDrawerOpen(true);
     };
 
-    const handleConfirm = () => {
-        if (formData) {
-            console.log('Sign in:', formData);
-            // TODO: Implement actual sign in logic
-            setIsDrawerOpen(false);
-            navigate('/play');
+    const handleConfirm = async () => {
+        if (!formData) return;
+
+        try {
+            const response = await api.post('/auth/signin', formData);
+            if (response.data) {
+                const { user, accessToken } = response.data;
+                setAuth(user, accessToken);
+                setIsDrawerOpen(false);
+                toast.success(`환영합니다, ${user.name}님!`);
+                navigate('/play');
+            }
+        } catch (error: any) {
+            console.error('Login failed:', error);
+            // Error handling is mostly done in interceptor, but we can catch specific cases or fallback
+            if (!error.response) {
+                toast.error('서버와 연결할 수 없습니다.');
+            } else if (error.response.status !== 401 && error.response.status < 500) {
+                // 400 Bad Request etc.
+                toast.error(error.response.data?.message || '로그인에 실패했습니다.');
+            }
         }
     };
 

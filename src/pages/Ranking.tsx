@@ -10,6 +10,15 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { Card } from '@/components/ui/card';
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+    Pagination,
+    PaginationContent,
+    PaginationItem,
+    PaginationLink,
+    PaginationNext,
+    PaginationPrevious,
+} from "@/components/ui/pagination";
 
 // Mock Data Generation
 const KOREAN_SURNAMES = ['김', '이', '박', '최', '정', '강', '조', '윤', '장', '임', '한', '오', '서', '신', '권', '황', '안', '송', '전', '홍'];
@@ -17,7 +26,7 @@ const KOREAN_NAMES = ['민준', '서준', '도윤', '예준', '시우', '하준'
 
 const generateMockData = () => {
     const data = [];
-    for (let i = 1; i <= 10; i++) {
+    for (let i = 1; i <= 30; i++) {
         // Generate random seconds between 5.00 and 59.99
         const totalSeconds = 5 + Math.random() * 55;
         const seconds = Math.floor(totalSeconds);
@@ -42,7 +51,6 @@ const generateMockData = () => {
 const MOCK_DATA = generateMockData();
 const ITEMS_PER_PAGE = 10;
 
-import { Skeleton } from "@/components/ui/skeleton";
 
 export const Ranking: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1);
@@ -63,12 +71,6 @@ export const Ranking: React.FC = () => {
     useEffect(() => {
         setIsLoading(false);
     }, []);
-
-    const handlePageChange = (page: number) => {
-        if (page >= 1 && page <= totalPages) {
-            setCurrentPage(page);
-        }
-    };
 
     useEffect(() => {
         if (isLoading) return; // Don't shuffle while loading
@@ -181,6 +183,49 @@ export const Ranking: React.FC = () => {
                         </TableBody>
                     </Table>
                 </div>
+                {!isLoading && (
+                    <div className="mt-4 text-zinc-400">
+                        <Pagination>
+                            <PaginationContent>
+                                <PaginationItem>
+                                    <PaginationPrevious
+                                        href="#"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            if (currentPage > 1) setCurrentPage(p => p - 1);
+                                        }}
+                                        className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                                    />
+                                </PaginationItem>
+                                {Array.from({ length: totalPages }).map((_, i) => (
+                                    <PaginationItem key={i + 1}>
+                                        <PaginationLink
+                                            href="#"
+                                            isActive={currentPage === i + 1}
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                setCurrentPage(i + 1);
+                                            }}
+                                            className="cursor-pointer"
+                                        >
+                                            {i + 1}
+                                        </PaginationLink>
+                                    </PaginationItem>
+                                ))}
+                                <PaginationItem>
+                                    <PaginationNext
+                                        href="#"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            if (currentPage < totalPages) setCurrentPage(p => p + 1);
+                                        }}
+                                        className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                                    />
+                                </PaginationItem>
+                            </PaginationContent>
+                        </Pagination>
+                    </div>
+                )}
             </Card>
         </div>
     );
