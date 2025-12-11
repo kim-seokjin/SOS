@@ -16,3 +16,19 @@ env/
 # OS
 .DS_Store
 Thumbs.db
+
+# Database
+*.db
+*.sqlite3
+*.sqlite
+sql_app.db
+sos.db
+data/*.db
+
+# Logs
+*.log
+log.txt
+
+# Testing
+.pytest_cache/
+

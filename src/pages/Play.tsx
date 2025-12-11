@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Shuffle, RotateCcw, Lightbulb } from 'lucide-react';
+import { recordGame } from '@/lib/api';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import puzzle1 from '@/assets/puzzles/puzzle1.png';
@@ -9,6 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import { Skeleton } from "@/components/ui/skeleton";
 import { SuccessDialog } from '@/components/SuccessDialog';
 import { HintDialog } from '@/components/HintDialog';
+import { useAuthStore } from '@/lib/store/useAuthStore';
 
 const PUZZLE_IMAGES = [puzzle1, puzzle2];
 
@@ -35,6 +38,8 @@ export const Play: React.FC = () => {
     const [hasUsedHint, setHasUsedHint] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isImageLoaded, setIsImageLoaded] = useState(false);
+    const [rank, setRank] = useState<number | undefined>(undefined);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const endTimeRef = useRef<number>(0);
     const navigate = useNavigate();
@@ -54,11 +59,20 @@ export const Play: React.FC = () => {
         setHasUsedHint(false);
         setHintTimeLeft(10000);
         setIsHintActive(false);
+        setRank(undefined);
+        setIsSubmitting(false);
     };
 
+    const { isAuthenticated } = useAuthStore();
+
     useEffect(() => {
+        if (!isAuthenticated()) {
+            toast.error('로그인이 필요한 서비스입니다.');
+            navigate('/signin');
+            return;
+        }
         setIsLoading(false);
-    }, []);
+    }, [isAuthenticated, navigate]);
 
     useEffect(() => {
         // Select random image on mount
@@ -132,13 +146,33 @@ export const Play: React.FC = () => {
 
     useEffect(() => {
         if (isGlowing) {
-            const timer = setTimeout(() => {
+            const timer = setTimeout(async () => {
                 setIsWon(true);
                 setIsGlowing(false);
+
+                // Record Game Result
+                const clearTimeMs = 60000 - timeLeft;
+                setIsSubmitting(true);
+                try {
+                    const response = await recordGame(clearTimeMs);
+                    if (response.success) {
+                        setRank(response.rank);
+                    }
+                } catch (error: any) {
+                    console.error('Failed to record game:', error);
+                    if (error.response?.status === 400) {
+                        toast.error(error.response.data?.detail || '비정상적인 기록입니다.');
+                    } else {
+                        toast.error('기록 저장에 실패했습니다.');
+                    }
+                } finally {
+                    setIsSubmitting(false);
+                }
+
             }, 2000); // Glow for 2 seconds
             return () => clearTimeout(timer);
         }
-    }, [isGlowing]);
+    }, [isGlowing, timeLeft]);
 
     useEffect(() => {
         if (isWon) {
@@ -309,6 +343,8 @@ export const Play: React.FC = () => {
                 open={isWon}
                 onOpenChange={(open) => !open && setIsWon(false)}
                 record={getRecord()}
+                rank={rank}
+                isRankLoading={isSubmitting}
                 onNavigateRanking={() => navigate('/ranking')}
                 onRetry={shufflePuzzle}
             />

@@ -34,6 +34,8 @@ interface SuccessDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     record: string;
+    rank?: number;
+    isRankLoading?: boolean;
     onNavigateRanking: () => void;
     onRetry: () => void;
 }
@@ -42,6 +44,8 @@ export const SuccessDialog: React.FC<SuccessDialogProps> = ({
     open,
     onOpenChange,
     record,
+    rank,
+    isRankLoading,
     onNavigateRanking,
     onRetry
 }) => {
@@ -67,6 +71,17 @@ export const SuccessDialog: React.FC<SuccessDialogProps> = ({
                         <p className="text-zinc-400 text-sm mb-1">기록</p>
                         <p className="text-2xl font-bold text-green-400 font-mono">{record}초</p>
                     </div>
+                    {isRankLoading ? (
+                        <div className="text-center space-y-1">
+                            <Skeleton className="h-4 w-16 mx-auto" />
+                            <Skeleton className="h-10 w-24 mx-auto" />
+                        </div>
+                    ) : rank && (
+                        <div className="text-center animate-bounce">
+                            <p className="text-zinc-400 text-sm">현재 순위</p>
+                            <p className="text-3xl md:text-4xl font-black text-yellow-400 drop-shadow-lg">{rank}위</p>
+                        </div>
+                    )}
                 </div>
                 <DialogFooter className="flex-row sm:justify-center gap-3">
                     <Button

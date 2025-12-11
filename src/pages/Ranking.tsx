@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Crown, Medal } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { socket } from '@/lib/socket';
+import { getRankings, getMyRank } from '@/lib/api';
+import type { RankItem } from '@/lib/api';
+import { useAuthStore } from '@/lib/store/useAuthStore';
 import {
     Table,
     TableBody,
@@ -20,76 +24,101 @@ import {
     PaginationPrevious,
 } from "@/components/ui/pagination";
 
-// Mock Data Generation
-const KOREAN_SURNAMES = ['김', '이', '박', '최', '정', '강', '조', '윤', '장', '임', '한', '오', '서', '신', '권', '황', '안', '송', '전', '홍'];
-const KOREAN_NAMES = ['민준', '서준', '도윤', '예준', '시우', '하준', '지호', '주원', '지우', '준우', '서현', '서연', '지민', '윤서', '하은', '예은', '수아', '지아', '민서', '채원'];
-
-const generateMockData = () => {
-    const data = [];
-    for (let i = 1; i <= 30; i++) {
-        // Generate random seconds between 5.00 and 59.99
-        const totalSeconds = 5 + Math.random() * 55;
-        const seconds = Math.floor(totalSeconds);
-        const centiseconds = Math.floor((totalSeconds % 1) * 100);
-
-        const timeString = `${seconds.toString().padStart(2, '0')}.${centiseconds.toString().padStart(2, '0')}`;
-
-        const surname = KOREAN_SURNAMES[Math.floor(Math.random() * KOREAN_SURNAMES.length)];
-        const name = KOREAN_NAMES[Math.floor(Math.random() * KOREAN_NAMES.length)];
-
-        data.push({
-            id: i,
-            name: surname + name,
-            record: timeString,
-            date: new Date(Date.now() - Math.floor(Math.random() * 10000000000)).toLocaleDateString()
-        });
-    }
-    // Sort by record (mocking "best time" - simpler string sort for now, ideally should be numeric)
-    return data.sort((a, b) => a.record.localeCompare(b.record));
-};
-
-const MOCK_DATA = generateMockData();
 const ITEMS_PER_PAGE = 10;
 
 
 export const Ranking: React.FC = () => {
     const [currentPage, setCurrentPage] = useState(1);
-    const [rankingData, setRankingData] = useState(MOCK_DATA);
+    const [rankingData, setRankingData] = useState<RankItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [myRank, setMyRank] = useState<number | null>(null);
+    const { isAuthenticated } = useAuthStore();
+
+    const fetchRankings = async () => {
+        setIsLoading(true);
+        try {
+            let limit = 10;
+            let targetPage = 1;
+
+            if (isAuthenticated()) {
+                try {
+                    const myRankData = await getMyRank();
+                    setMyRank(myRankData.rank);
+
+                    // Calculate required limit to include my rank
+                    // If rank is 25, we need at least 30 items (page 3)
+                    // If rank is 5, we need 10 items (page 1)
+                    if (myRankData.rank > 10) {
+                        limit = Math.ceil(myRankData.rank / 10) * 10;
+                        targetPage = Math.ceil(myRankData.rank / 10);
+                    }
+                } catch (e) {
+                    console.error("Failed to fetch my rank", e);
+                    // Fallback to top 10 if my rank fetch fails
+                }
+            }
+
+            const data = await getRankings(limit);
+            setRankingData(data);
+
+            if (isAuthenticated() && targetPage > 1 && !isLoading) {
+                // Only set page if initial load or specific user action, 
+                // but here we might want to avoid jumping pages on real-time update unless necessary.
+                // For now, let's keep it simple: initial load sets page.
+                setCurrentPage(targetPage);
+            }
+        } catch (error) {
+            console.error('Failed to fetch rankings:', error);
+            // toast.error('랭킹 정보를 불러오는데 실패했습니다.'); // Suppress toast on frequent updates if any
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchRankings();
+
+        // Connect to Socket.IO
+        if (!socket.connected) {
+            socket.on('connect', () => {
+                console.log('Socket connected:', socket.id);
+            });
+
+            socket.on('connect_error', (err) => {
+                console.log('Socket connection error:', err);
+            });
+
+            socket.connect();
+        }
+
+        const handleRankingUpdate = (data: any) => {
+            console.log('Ranking update received:', data);
+            if (Array.isArray(data)) {
+                setRankingData(data);
+            } else {
+                fetchRankings();
+            }
+        };
+
+        socket.on('ranking_update', handleRankingUpdate);
+
+        return () => {
+            socket.off('ranking_update', handleRankingUpdate);
+        };
+    }, []);
+
 
     const totalPages = Math.ceil(rankingData.length / ITEMS_PER_PAGE);
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     const currentData = rankingData.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
     const maskName = (name: string) => {
+        if (!name) return '***';
         if (name.length <= 2) {
             return name[0] + '*';
         }
         return name[0] + '*'.repeat(name.length - 2) + name[name.length - 1];
     };
-
-    useEffect(() => {
-        setIsLoading(false);
-    }, []);
-
-    useEffect(() => {
-        if (isLoading) return; // Don't shuffle while loading
-        const interval = setInterval(() => {
-            setRankingData((prevData) => {
-                const newData = [...prevData];
-                // Shuffle a bit to simulate rank changes
-                for (let i = 0; i < newData.length; i++) {
-                    if (Math.random() > 0.7) {
-                        const j = Math.floor(Math.random() * newData.length);
-                        [newData[i], newData[j]] = [newData[j], newData[i]];
-                    }
-                }
-                return newData;
-            });
-        }, 10000);
-
-        return () => clearInterval(interval);
-    }, [isLoading]);
 
     return (
         <div className="w-full flex-1 flex flex-col items-center justify-center px-4 py-2 md:p-6">
@@ -139,9 +168,15 @@ export const Ranking: React.FC = () => {
                                             RankIcon = <Medal className="w-4 h-4 ml-1 inline-block" />;
                                         }
 
+                                        // Highlight my rank logic
+                                        const isMyRank = rank === myRank;
+                                        if (isMyRank) {
+                                            rowStyles = "border-yellow-500/50 bg-yellow-500/20 hover:bg-yellow-500/30 ring-1 ring-yellow-500/50 relative z-10";
+                                        }
+
                                         return (
                                             <motion.tr
-                                                key={item.id}
+                                                key={item.userId || item.rank} // Use userId if available, else rank fallback
                                                 layout
                                                 initial={{ opacity: 0, y: 20 }}
                                                 animate={{ opacity: 1, y: 0 }}

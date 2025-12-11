@@ -27,7 +27,7 @@ const signInSchema = z.object({
 
 type SignInFormValues = z.infer<typeof signInSchema>;
 
-import { api } from '@/lib/api';
+import { signIn } from '@/lib/auth';
 import { useAuthStore } from '@/lib/store/useAuthStore';
 import { toast } from 'sonner';
 import { Skeleton } from "@/components/ui/skeleton";
@@ -67,28 +67,33 @@ export const SignIn: React.FC = () => {
     };
 
     const handleConfirm = async () => {
-        if (!formData) return;
+        console.log("handleConfirm called");
+        if (!formData) {
+            console.log("No formData");
+            return;
+        }
 
         try {
-            const response = await api.post('/auth/signin', formData);
-            if (response.data) {
-                const { user, accessToken } = response.data;
-                setAuth(user, accessToken);
-                setIsDrawerOpen(false);
-                toast.success(`환영합니다, ${user.name}님!`);
-                navigate('/play');
-            }
+            console.log("Calling signIn API...");
+            const { user, accessToken } = await signIn(formData.name, formData.phone);
+            console.log("signIn success:", user);
+            setAuth(user, accessToken);
+            setIsDrawerOpen(false);
+            toast.success(`환영합니다, ${user.name}님!`);
+            navigate('/play');
         } catch (error: any) {
             console.error('Login failed:', error);
             // Error handling is mostly done in interceptor, but we can catch specific cases or fallback
-            if (!error.response) {
+            if (error.response?.data?.message) {
+                toast.error(error.response.data.message);
+            } else if (!error.response) {
                 toast.error('서버와 연결할 수 없습니다.');
-            } else if (error.response.status !== 401 && error.response.status < 500) {
-                // 400 Bad Request etc.
-                toast.error(error.response.data?.message || '로그인에 실패했습니다.');
+            } else {
+                toast.error('로그인에 실패했습니다.');
             }
         }
     };
+
 
     return (
         <div className="w-full flex-1 flex items-center justify-center p-4">
