@@ -23,6 +23,7 @@ import {
     PaginationNext,
     PaginationPrevious,
 } from "@/components/ui/pagination";
+import { toast } from 'sonner';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -98,6 +99,7 @@ export const Ranking: React.FC = () => {
 
         const handleRankingUpdate = (data: any) => {
             console.log('Ranking update received:', data);
+            toast.success('랭킹이 업데이트되었습니다!');
             // Refresh current page
             fetchRankings(currentPage);
         };
