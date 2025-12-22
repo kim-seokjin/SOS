@@ -16,37 +16,16 @@ router = APIRouter()
 @router.get("/hidden-message", response_model=dict)
 async def get_hidden_message(
     current_user: User = Depends(deps.get_current_user),
-    db: AsyncSession = Depends(get_db)
 ):
-    # Security check: Ensure user is actually rank 1
-    
-    # 1. Get user's best time
-    user_best_query = select(func.min(GameRecord.clear_time_ms)).where(GameRecord.user_id == current_user.id)
-    result = await db.execute(user_best_query)
-    user_best_time = result.scalar()
+    from app.core.redis import redis_client
 
-    if user_best_time is None:
+    # Check rank via Redis (0-indexed, so 0 is Rank 1)
+    rank_index = await redis_client.zrank("game_ranks", str(current_user.id))
+
+    if rank_index is None:
         raise HTTPException(status_code=403, detail="게임 기록이 없습니다.")
 
-    # 2. Check if this is the global best time
-    # We want to ensure no one has a better time (strictly less)
-    
-    # Subquery for best time of each user
-    subquery = (
-        select(
-            GameRecord.user_id, 
-            func.min(GameRecord.clear_time_ms).label("best_time")
-        )
-        .group_by(GameRecord.user_id)
-        .subquery()
-    )
-    
-    # Count how many users have a better time
-    count_query = select(func.count()).select_from(subquery).where(subquery.c.best_time < user_best_time)
-    count_result = await db.execute(count_query)
-    better_count = count_result.scalar()
-    
-    if better_count > 0:
+    if rank_index != 0:
          raise HTTPException(status_code=403, detail="1등만 히든 메시지를 확인할 수 있습니다.")
 
     return {"messages": settings.HIDDEN_MESSAGES}
@@ -126,31 +105,17 @@ async def create_game_record(
     await db.commit()
     await db.refresh(game_record)
 
-    # Calculate rank
-    # Rank = (count of distinct users with better time) + 1
-    # Better time means distinct(user_id) where min(clear_time_ms) < current_record
+    # Calculate rank using Redis
+    from app.core.redis import redis_client
     
-    # Simple Rank Logic for now: Count all records better than this one? 
-    # PRD says "Team Rank" or "My Rank"?
-    # "현재 유저의 전체 랭킹을 계산하여 반환" -> Global Rank.
-    # Usually rank is based on BEST time per user.
+    # Update Redis ZSET (Only keep best time - lower is better)
+    # ZADD with 'lt' (Less Than) option only updates if new score is less than existing score.
+    # Note: If it doesn't exist, it adds it.
+    await redis_client.zadd("game_ranks", {str(current_user.id): record_in.clearTimeMs}, lt=True)
     
-    # 1. Get best time for each user
-    subquery = (
-        select(
-            GameRecord.user_id, 
-            func.min(GameRecord.clear_time_ms).label("best_time")
-        )
-        .group_by(GameRecord.user_id)
-        .subquery()
-    )
-    
-    # 2. Count users with better time
-    query = select(func.count()).select_from(subquery).where(subquery.c.best_time < record_in.clearTimeMs)
-    result = await db.execute(query)
-    better_count = result.scalar()
-    
-    rank = better_count + 1
+    # Get Rank (0-based index)
+    rank_index = await redis_client.zrank("game_ranks", str(current_user.id))
+    rank = rank_index + 1
 
     # Broadcast ranking update
     # Only broadcast if the new record is within top 10
@@ -158,38 +123,48 @@ async def create_game_record(
         from app.core.socket import sio
         from app.utils.masking import mask_name
         
-        # 1. Get Top 10
-        limit = 10
-        subquery = (
-            select(
-                GameRecord.user_id,
-                func.min(GameRecord.clear_time_ms).label("best_time"),
-                func.max(GameRecord.played_at).label("last_played_at")
-            )
-            .group_by(GameRecord.user_id)
-            .subquery()
-        )
-
-        query = (
-            select(subquery.c.user_id, subquery.c.best_time, subquery.c.last_played_at, User.name)
-            .join(User, subquery.c.user_id == User.id)
-            .order_by(subquery.c.best_time.asc())
-            .limit(limit)
-        )
+        # 1. Get Top 10 from Redis
+        # Returns list of (member, score) tuples
+        top_records = await redis_client.zrange("game_ranks", 0, 9, withscores=True)
         
-        result = await db.execute(query)
-        rows = result.all()
-        
-        ranking_list = []
-        for index, row in enumerate(rows):
-            ranking_list.append({
-                "rank": index + 1,
-                "userId": str(row.user_id),
-                "name": mask_name(row.name),
-                "record": f"{row.best_time / 1000:.2f}",
-                "date": row.last_played_at.strftime("%Y-%m-%d") if row.last_played_at else ""
-            })
-        
-        await sio.emit('ranking_update', ranking_list, namespace='/ranking')
+        if top_records:
+            # 2. Get User Details from DB
+            user_ids = [int(uid) for uid, _ in top_records]
+            
+            # Fetch users in bulk
+            user_query = select(User).where(User.id.in_(user_ids))
+            user_result = await db.execute(user_query)
+            users = {user.id: user for user in user_result.scalars().all()}
+            
+            # 3. Build Ranking List
+            ranking_list = []
+            for i, (uid_str, score) in enumerate(top_records):
+                uid = int(uid_str)
+                user_obj = users.get(uid)
+                name = user_obj.name if user_obj else "Unknown"
+                
+                # Fetch date for this record (best effort)
+                date_str = ""
+                try:
+                    record_query = select(GameRecord.played_at).where(
+                        GameRecord.user_id == uid,
+                        GameRecord.clear_time_ms == int(score)
+                    ).limit(1)
+                    record_result = await db.execute(record_query)
+                    record_date = record_result.scalar()
+                    if record_date:
+                        date_str = record_date.strftime("%Y-%m-%d")
+                except Exception:
+                    pass
+                
+                ranking_list.append({
+                    "rank": i + 1,
+                    "userId": str(uid),
+                    "name": mask_name(name),
+                    "record": f"{score / 1000:.2f}",
+                    "date": date_str
+                })
+            
+            await sio.emit('ranking_update', ranking_list, namespace='/ranking')
 
     return {"success": True, "rank": rank}

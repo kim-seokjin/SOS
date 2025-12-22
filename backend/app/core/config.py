@@ -11,6 +11,9 @@ class Settings(BaseSettings):
 
     # Database
     DATABASE_URL: str = "sqlite+aiosqlite:///./data/sos.db"
+    
+    # Redis
+    REDIS_URL: str = "redis://localhost:6379/0"
 
     # AWS S3
     AWS_ACCESS_KEY_ID: str = ""

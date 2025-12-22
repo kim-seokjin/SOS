@@ -16,39 +16,24 @@ async def get_my_rank(
     current_user: User = Depends(deps.get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    # 1. Get my best record
-    result = await db.execute(
-        select(func.min(GameRecord.clear_time_ms))
-        .where(GameRecord.user_id == current_user.id)
-    )
-    my_best_time = result.scalar()
+    from app.core.redis import redis_client
+    
+    # 1. Get Rank and Score from Redis
+    rank_index = await redis_client.zrank("game_ranks", str(current_user.id))
+    score = await redis_client.zscore("game_ranks", str(current_user.id))
 
-    if my_best_time is None:
+    if rank_index is None or score is None:
         return {"rank": 0, "record": "0.00"}
 
-    # 2. Calculate rank
-    subquery = (
-        select(
-            GameRecord.user_id, 
-            func.min(GameRecord.clear_time_ms).label("best_time")
-        )
-        .group_by(GameRecord.user_id)
-        .subquery()
-    )
-    
-    query = select(func.count()).select_from(subquery).where(subquery.c.best_time < my_best_time)
-    result = await db.execute(query)
-    better_count = result.scalar()
-    rank = better_count + 1
-
     return {
-        "rank": rank,
-        "record": f"{my_best_time / 1000:.2f}"
+        "rank": rank_index + 1,
+        "record": f"{score / 1000:.2f}"
     }
 
 from typing import List
 from app.schemas.ranking import RankingItem, RankingListResponse
 from app.utils.masking import mask_name
+from app.core.redis import redis_client
 
 @router.get("", response_model=RankingListResponse)
 async def get_ranks(
@@ -56,46 +41,63 @@ async def get_ranks(
     limit: int = 10,
     db: AsyncSession = Depends(get_db)
 ):
-    # 1. Base subquery for user best records
-    subquery = (
-        select(
-            GameRecord.user_id,
-            func.min(GameRecord.clear_time_ms).label("best_time"),
-            func.max(GameRecord.played_at).label("last_played_at")
-        )
-        .group_by(GameRecord.user_id)
-        .subquery()
-    )
-
-    # 2. Get total count
-    count_query = select(func.count()).select_from(subquery)
-    count_result = await db.execute(count_query)
-    total = count_result.scalar()
-
-    # 3. Get paginated results
-    query = (
-        select(subquery.c.user_id, subquery.c.best_time, subquery.c.last_played_at, User.name)
-        .join(User, subquery.c.user_id == User.id)
-        .order_by(subquery.c.best_time.asc())
-        .offset(skip)
-        .limit(limit)
-    )
-
-    result = await db.execute(query)
-    rows = result.all()
+    # 1. Get Range from Redis
+    # Returns list of (member, score) tuples
+    top_records = await redis_client.zrange("game_ranks", skip, skip + limit - 1, withscores=True)
+    
+    total_count = await redis_client.zcard("game_ranks")
 
     ranking_list = []
-    for index, row in enumerate(rows):
-        ranking_list.append({
-            "rank": skip + index + 1,
-            "userId": str(row.user_id),
-            "name": mask_name(row.name),
-            "record": f"{row.best_time / 1000:.2f}",
-            "date": row.last_played_at.strftime("%Y-%m-%d") if row.last_played_at else ""
-        })
+    if top_records:
+        user_ids = [int(uid) for uid, _ in top_records]
+        
+        # 2. Get User Details
+        user_query = select(User).where(User.id.in_(user_ids))
+        user_result = await db.execute(user_query)
+        users = {user.id: user for user in user_result.scalars().all()}
+        
+        # 3. Get Dates (Optional but good for UI) - optimized: get best record date for these users
+        # We want the date of the record that matches the score.
+        # Construct a query to get metadata for these specific user/score pairs?
+        # Simpler: Get latest game date for these users? Or just fetch best record.
+        # Let's do a bulk query for GameRecords matching user_id and approximate time?
+        # Actually, let's just do N small queries or one IN query.
+        # Since standard is "best time", let's query the specific best time record for each.
+        
+        # Optimization: Fetch one record per user where clear_time matches score.
+        # Since we have the score (clear_time_ms) from Redis.
+        
+        for i, (uid_str, score) in enumerate(top_records):
+            uid = int(uid_str)
+            user_obj = users.get(uid)
+            name = user_obj.name if user_obj else "Unknown"
+            
+            # Fetch date for this record (best effort)
+            date_str = ""
+            try:
+                # Find exactly this record
+                record_query = select(GameRecord.played_at).where(
+                    GameRecord.user_id == uid,
+                    GameRecord.clear_time_ms == int(score) # score in Redis is float, but we stored int? Redis stores float.
+                    # We stored int `clearTimeMs` passed to zadd.
+                ).limit(1)
+                record_result = await db.execute(record_query)
+                record_date = record_result.scalar()
+                if record_date:
+                    date_str = record_date.strftime("%Y-%m-%d")
+            except Exception:
+                pass
+
+            ranking_list.append({
+                "rank": skip + i + 1,
+                "userId": str(uid),
+                "name": mask_name(name),
+                "record": f"{score / 1000:.2f}",
+                "date": date_str
+            })
 
     return {
         "items": ranking_list,
-        "total": total
+        "total": total_count
     }
 

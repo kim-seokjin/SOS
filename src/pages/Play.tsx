@@ -11,8 +11,49 @@ import { SuccessDialog } from '@/components/SuccessDialog';
 import { HintDialog } from '@/components/HintDialog';
 import { useAuthStore } from '@/lib/store/useAuthStore';
 
+const optimizeImage = (
+    src: string,
+    maxWidth: number = 1024 // Limit max width for mobile optimization
+): Promise<{ url: string; width: number; height: number }> => {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.src = src;
 
+        img.onload = () => {
+            let width = img.width;
+            let height = img.height;
 
+            if (width > maxWidth) {
+                height = Math.round((height * maxWidth) / width);
+                width = maxWidth;
+            }
+
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                reject(new Error('Canvas context failure'));
+                return;
+            }
+
+            ctx.drawImage(img, 0, 0, width, height);
+
+            canvas.toBlob((blob) => {
+                if (blob) {
+                    const optimizedUrl = URL.createObjectURL(blob);
+                    resolve({ url: optimizedUrl, width, height });
+                } else {
+                    reject(new Error('Blob creation failed'));
+                }
+            }, 'image/webp', 0.85);
+        };
+
+        img.onerror = (e) => reject(e);
+    });
+};
 
 const GRID_SIZE = 4;
 const DEFAULT_ITEMS = Array.from({ length: GRID_SIZE * GRID_SIZE }, (_, i) => {
@@ -89,25 +130,18 @@ export const Play: React.FC = () => {
             try {
                 const response = await getPuzzleImage();
                 const imageUrl = response.url;
-                setImage(imageUrl);
 
-                const img = new Image();
-                img.crossOrigin = "anonymous"; // S3 CORS 설정 활용
+                // Optimize image on client side
+                const optimized = await optimizeImage(imageUrl);
 
-                img.onload = () => {
-                    console.log("Image loaded successfully:", imageUrl);
-                    setAspectRatio(img.width / img.height);
-                    setIsImageLoaded(true);
-                };
+                setImage(optimized.url);
+                setAspectRatio(optimized.width / optimized.height);
+                setIsImageLoaded(true);
 
-                img.onerror = (e) => {
-                    console.error("Image failed to load:", e);
-                    showToast.error("이미지 로드에 실패했습니다.");
-                };
+                console.log("Image optimized and loaded");
 
-                img.src = imageUrl;
             } catch (error) {
-                console.error("Failed to fetch puzzle image:", error);
+                console.error("Failed to fetch or optimize puzzle image:", error);
                 showToast.error("이미지를 불러오는데 실패했습니다.");
             }
         };
