@@ -52,7 +52,6 @@ async def get_hidden_message(
     return {"messages": settings.HIDDEN_MESSAGES}
 
 @router.get("/history", response_model=GameHistoryResponse)
-@router.get("/history", response_model=GameHistoryResponse)
 async def get_my_game_history(
     skip: int = 0,
     limit: int = 10,
