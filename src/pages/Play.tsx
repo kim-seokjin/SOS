@@ -418,7 +418,7 @@ export const Play: React.FC = () => {
                 record={getRecord()}
                 rank={rank}
                 isRankLoading={isSubmitting}
-                onNavigateRanking={() => navigate('/ranking')}
+                onNavigateRanking={() => navigate('/hall-of-fame')}
                 onRetry={resetGame}
             />
 

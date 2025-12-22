@@ -89,25 +89,27 @@ export const SuccessDialog: React.FC<SuccessDialogProps> = ({
                     </div>
                 </div>
                 <DialogFooter className="flex flex-col gap-3 sm:justify-center">
-                    <div className="flex flex-row gap-3 w-full">
-                        <Button
-                            onClick={() => {
-                                onRetry();
-                                onOpenChange(false);
-                            }}
-                            className="flex-1 bg-zinc-800 text-white hover:bg-zinc-700 gap-2 font-bold py-6"
-                        >
-                            <RotateCcw className="w-4 h-4" />
-                            재도전하기
-                        </Button>
-                        <Button
-                            onClick={onNavigateRanking}
-                            className="flex-1 bg-white text-black hover:bg-zinc-200 gap-2 font-bold py-6"
-                        >
-                            <Trophy className="w-4 h-4" />
-                            실시간 랭킹 확인하기
-                        </Button>
-                    </div>
+                    {rank !== 1 && (
+                        <div className="flex flex-row gap-3 w-full">
+                            <Button
+                                onClick={() => {
+                                    onRetry();
+                                    onOpenChange(false);
+                                }}
+                                className="flex-1 bg-zinc-800 text-white hover:bg-zinc-700 gap-2 font-bold py-6"
+                            >
+                                <RotateCcw className="w-4 h-4" />
+                                재도전하기
+                            </Button>
+                            <Button
+                                onClick={onNavigateRanking}
+                                className="flex-1 bg-white text-black hover:bg-zinc-200 gap-2 font-bold py-6"
+                            >
+                                <Trophy className="w-4 h-4" />
+                                명예의 전당 확인하기
+                            </Button>
+                        </div>
+                    )}
                     {rank === 1 && (
                         <Button
                             onClick={() => setShowHiddenDialog(true)}
@@ -121,6 +123,8 @@ export const SuccessDialog: React.FC<SuccessDialogProps> = ({
                 <HiddenMessageDialog
                     open={showHiddenDialog}
                     onOpenChange={setShowHiddenDialog}
+                    onRetry={onRetry}
+                    onNavigateRanking={onNavigateRanking}
                 />
             </DialogContent>
         </Dialog>

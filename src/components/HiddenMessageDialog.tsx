@@ -6,16 +6,24 @@ import {
     DialogTitle,
     DialogDescription,
 } from "@/components/ui/dialog";
-import { PartyPopper } from 'lucide-react';
+import { PartyPopper, Loader2, RotateCcw, Trophy } from 'lucide-react';
 import { Typewriter } from './ui/Typewriter';
-import { getHiddenMessages } from '@/lib/game';
+import { getHiddenMessages } from '@/lib/api';
+import { Button } from '@/components/ui/button';
 
 interface HiddenMessageDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    onRetry: () => void;
+    onNavigateRanking: () => void;
 }
 
-export const HiddenMessageDialog: React.FC<HiddenMessageDialogProps> = ({ open, onOpenChange }) => {
+export const HiddenMessageDialog: React.FC<HiddenMessageDialogProps> = ({
+    open,
+    onOpenChange,
+    onRetry,
+    onNavigateRanking
+}) => {
     const [currentStep, setCurrentStep] = useState(0);
     const [messages, setMessages] = useState<string[]>([]);
 
@@ -58,43 +66,45 @@ export const HiddenMessageDialog: React.FC<HiddenMessageDialogProps> = ({ open, 
 
                 <div className="bg-white/5 p-6 rounded-lg border border-white/10 mt-2 min-h-[300px]">
                     <div className="text-left space-y-4 font-medium leading-relaxed text-zinc-100">
-                        <p>
-                            <Typewriter
-                                text="안녕하세요, 1등 플레이어님. 오늘의 신랑이자 SOS 개발자, 김석진입니다."
-                                start={open && currentStep >= 0}
-                                onComplete={() => handleComplete(0)}
-                                speed={30}
-                            />
-                        </p>
-                        {currentStep >= 1 && (
-                            <p>
-                                <Typewriter
-                                    text="저는 상상을 현실로 만들어내는 '개발자'라는 제 직업을 누구보다 사랑하고 행복해하는 사람입니다. 평생 이 일을 하며 살고 싶을 만큼요."
-                                    start={true}
-                                    onComplete={() => handleComplete(1)}
-                                    speed={30}
-                                />
-                            </p>
+                        {messages.length > 0 ? (
+                            messages.map((msg, index) => (
+                                currentStep >= index && (
+                                    <p key={index} className={index === messages.length - 1 ? "font-bold" : ""}>
+                                        <Typewriter
+                                            text={msg}
+                                            start={true}
+                                            onComplete={() => handleComplete(index)}
+                                            speed={index === messages.length - 1 ? 50 : 30}
+                                        />
+                                    </p>
+                                )
+                            ))
+                        ) : (
+                            <div className="flex items-center justify-center h-full text-zinc-500 pt-10">
+                                <Loader2 className="w-6 h-6 animate-spin text-zinc-500" />
+                            </div>
                         )}
-                        {currentStep >= 2 && (
-                            <p>
-                                <Typewriter
-                                    text="하지만 오늘부터는 달라지려 합니다. 저의 모든 상상력과 열정, 이제 오직 한 여자를 위해 쓰겠습니다."
-                                    start={true}
-                                    onComplete={() => handleComplete(2)}
-                                    speed={30}
-                                />
-                            </p>
-                        )}
-                        {currentStep >= 3 && (
-                            <p className="font-bold">
-                                <Typewriter
-                                    text="저희의 새로운 시작을 지켜봐 주세요. 플레이해 주셔서 감사합니다."
-                                    start={true}
-                                    speed={50}
-                                />
-                            </p>
-                        )}
+                    </div>
+                </div>
+                <div className="flex flex-col gap-3 mt-6">
+                    <div className="flex flex-row gap-3 w-full">
+                        <Button
+                            onClick={() => {
+                                onRetry();
+                                onOpenChange(false);
+                            }}
+                            className="flex-1 bg-zinc-800 text-white hover:bg-zinc-700 gap-2 font-bold py-6"
+                        >
+                            <RotateCcw className="w-4 h-4" />
+                            재도전하기
+                        </Button>
+                        <Button
+                            onClick={onNavigateRanking}
+                            className="flex-1 bg-white text-black hover:bg-zinc-200 gap-2 font-bold py-6"
+                        >
+                            <Trophy className="w-4 h-4" />
+                            명예의 전당 확인하기
+                        </Button>
                     </div>
                 </div>
             </DialogContent>

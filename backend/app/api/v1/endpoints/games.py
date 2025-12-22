@@ -9,8 +9,6 @@ from app.schemas.game import GameRecordCreate, GameRecordResponse, GameHistoryRe
 from app.api import deps
 from app.core.config import settings
 
-from app.core.config import settings
-
 router = APIRouter()
 
 @router.get("/hidden-message", response_model=dict)
@@ -96,9 +94,12 @@ async def create_game_record(
     if record_in.clearTimeMs < 2000:
         raise HTTPException(status_code=400, detail="유효하지 않은 기록입니다.")
 
+    # Capture user_id before commit to avoid MissingGreenlet error (lazy load after commit)
+    user_id = current_user.id
+
     # Save record
     game_record = GameRecord(
-        user_id=current_user.id,
+        user_id=user_id,
         clear_time_ms=record_in.clearTimeMs
     )
     db.add(game_record)
@@ -111,10 +112,10 @@ async def create_game_record(
     # Update Redis ZSET (Only keep best time - lower is better)
     # ZADD with 'lt' (Less Than) option only updates if new score is less than existing score.
     # Note: If it doesn't exist, it adds it.
-    await redis_client.zadd("game_ranks", {str(current_user.id): record_in.clearTimeMs}, lt=True)
+    await redis_client.zadd("game_ranks", {str(user_id): record_in.clearTimeMs}, lt=True)
     
     # Get Rank (0-based index)
-    rank_index = await redis_client.zrank("game_ranks", str(current_user.id))
+    rank_index = await redis_client.zrank("game_ranks", str(user_id))
     rank = rank_index + 1
 
     # Broadcast ranking update
