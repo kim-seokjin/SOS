@@ -1,6 +1,7 @@
 from typing import List, Union
 from pydantic import AnyHttpUrl, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+import os
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Save Our Special Day"
@@ -47,6 +48,9 @@ class Settings(BaseSettings):
                 return [v]
         return v
 
-    model_config = SettingsConfigDict(case_sensitive=True, env_file=".env")
+    model_config = SettingsConfigDict(
+        case_sensitive=True,
+        env_file=os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), ".env")
+    )
 
 settings = Settings()

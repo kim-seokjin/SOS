@@ -3,17 +3,19 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+
     container_name: sos-backend
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
       - ./backend/data:/app/data
+    env_file:
+      - .env
     environment:
-      - SOS_API_PREFIX=${SOS_API_PREFIX:-/api/v1}
+      # Computed variables that depend on other variables can remain here or be moved to app logic.
+      # For now, we construct URLs here using compose substitution (which uses .env values).
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-sosuser}:${POSTGRES_PASSWORD:-sospassword}@${DB_HOST:-db}:${DB_PORT:-5432}/${POSTGRES_DB:-sosdb}
       - REDIS_URL=redis://${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/0
-      - SECRET_KEY=${SECRET_KEY:-docker_secret_key_change_me}
-      - TZ=${TZ:-Asia/Seoul}
     depends_on:
       - redis
       - db
@@ -22,11 +24,13 @@ services:
   db:
     image: postgres:${POSTGRES_VERSION:-15-alpine}
     container_name: sos-db
-    environment:
-      - POSTGRES_USER=${POSTGRES_USER:-sosuser}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-sospassword}
-      - POSTGRES_DB=${POSTGRES_DB:-sosdb}
-      - TZ=${TZ:-Asia/Seoul}
+    env_file:
+      - .env
+    # environment:
+    #   - POSTGRES_USER=${POSTGRES_USER}
+    #   - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    #   - POSTGRES_DB=${POSTGRES_DB}
+    #   - TZ=${TZ:-Asia/Seoul}
     volumes:
       - ./backend/data/postgres:/var/lib/postgresql/data
     ports:
@@ -38,8 +42,10 @@ services:
     container_name: sos-redis
     ports:
       - "${REDIS_PORT:-6379}:6379"
-    environment:
-      - TZ=${TZ:-Asia/Seoul}
+    env_file:
+      - .env
+    # environment:
+    #   - TZ=${TZ:-Asia/Seoul}
     restart: unless-stopped
 
   frontend:

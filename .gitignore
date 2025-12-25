@@ -65,6 +65,7 @@ env/
 *.db
 *.sqlite3
 *.sqlite
+backend/data/*
 backend/data/*.db
 backend/sos.db
 sql_app.db
