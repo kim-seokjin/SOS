@@ -111,16 +111,18 @@ async def create_game_record(
     
     # Update Redis ZSET (Only keep best time - lower is better)
     # ZADD with 'lt' (Less Than) option only updates if new score is less than existing score.
-    # Note: If it doesn't exist, it adds it.
-    await redis_client.zadd("game_ranks", {str(user_id): record_in.clearTimeMs}, lt=True)
+    # 'ch' (Changed) option makes it return number of keys changed (added or updated)
+    changed = await redis_client.zadd("game_ranks", {str(user_id): record_in.clearTimeMs}, lt=True, ch=True)
     
     # Get Rank (0-based index)
     rank_index = await redis_client.zrank("game_ranks", str(user_id))
     rank = rank_index + 1
 
     # Broadcast ranking update
-    # Only broadcast if the new record is within top 10
-    if rank <= 10:
+    # Only broadcast if:
+    # 1. The user is in the top 10
+    # 2. The record was actually updated (improved) or added (changed > 0)
+    if rank <= 10 and changed > 0:
         from app.core.socket import sio
         from app.utils.masking import mask_name
         
