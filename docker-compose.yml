@@ -47,6 +47,9 @@ services:
       - .env
     environment:
       - TZ=${TZ:-Asia/Seoul}
+    volumes:
+      - ./backend/data/redis:/data
+    command: redis-server --appendonly yes
     restart: unless-stopped
 
   frontend:
