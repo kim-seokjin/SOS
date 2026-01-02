@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { showToast } from '@/lib/customToast';
+import { useAuthStore } from '@/lib/store/useAuthStore';
 
 const baseURL = import.meta.env.VITE_API_URL || '/api/v1';
 
@@ -34,8 +35,12 @@ api.interceptors.response.use(
             const { status, data } = error.response;
             if (status === 401) {
                 // Token expired or invalid
-                const hadToken = !!localStorage.getItem('accessToken');
-                localStorage.removeItem('accessToken');
+                const { accessToken, clearAuth } = useAuthStore.getState();
+                const hadToken = !!accessToken;
+
+                // Clear auth state (removes token from localStorage & updates store)
+                clearAuth();
+
                 if (window.location.pathname !== '/signin') {
                     window.location.href = '/signin';
                 }

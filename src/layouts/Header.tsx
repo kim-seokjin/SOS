@@ -12,10 +12,10 @@ import { Menu, Trophy, LogOut, ChevronRight, ClipboardList } from 'lucide-react'
 import Avatar from "boring-avatars";
 
 export const Header: React.FC = () => {
-    const { user, clearAuth } = useAuthStore();
+    const { user, accessToken, clearAuth } = useAuthStore();
     const navigate = useNavigate();
     const [open, setOpen] = useState(false);
-    const isLoggedIn = !!user;
+    const isLoggedIn = !!user && !!accessToken;
 
     const handleLogout = () => {
         clearAuth();
