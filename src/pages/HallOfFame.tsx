@@ -126,7 +126,7 @@ export const HallOfFame: React.FC = () => {
                             <TableRow className="border-zinc-800 hover:bg-transparent">
                                 <TableHead className="text-center text-zinc-400 w-[15%] h-8 md:h-10 text-xs md:text-sm">순위</TableHead>
                                 <TableHead className="text-center text-zinc-400 w-[55%] h-8 md:h-10 text-xs md:text-sm">이름</TableHead>
-                                <TableHead className="text-center text-zinc-400 w-[30%] h-8 md:h-10 text-xs md:text-sm">기록</TableHead>
+                                <TableHead className="text-center text-zinc-400 w-[30%] h-8 md:h-10 text-xs md:text-sm">기록(초)</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
