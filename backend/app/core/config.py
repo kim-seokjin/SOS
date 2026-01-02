@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     # Hidden Message (Stored as JSON list string in env)
     HIDDEN_MESSAGES: List[str] = []
 
+    # Logging
+    LOG_LEVEL: str = "INFO"
+    LOG_JSON_FORMAT: bool = False
+
     @field_validator("BACKEND_CORS_ORIGINS", mode='before')
     @classmethod
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:

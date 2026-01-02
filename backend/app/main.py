@@ -8,9 +8,14 @@ from contextlib import asynccontextmanager
 import os
 from app.db.base import Base
 from app.db.session import engine
+from app.core.logger import setup_logging
+from app.core.middleware.logging_middleware import LoggingMiddleware
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Setup Logging
+    setup_logging()
+    
     # Ensure data directory exists (only for SQLite)
     if settings.DATABASE_URL.startswith("sqlite"):
         os.makedirs(os.path.dirname(settings.DATABASE_URL.replace("sqlite+aiosqlite:///", "")), exist_ok=True)
@@ -26,6 +31,9 @@ app = FastAPI(
     openapi_url=f"{settings.SOS_API_PREFIX}/openapi.json",
     lifespan=lifespan
 )
+
+# Add Middleware
+app.add_middleware(LoggingMiddleware)
 
 # Include API router
 app.include_router(api_router, prefix=settings.SOS_API_PREFIX)

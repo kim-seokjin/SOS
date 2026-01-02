@@ -84,6 +84,13 @@ async def get_my_game_history(
         "total": total
     }
 
+import logging
+import time
+
+logger = logging.getLogger(__name__)
+
+# ... (Imports remain same)
+
 @router.post("/record", response_model=GameRecordResponse, status_code=201)
 async def create_game_record(
     record_in: GameRecordCreate,
@@ -92,6 +99,7 @@ async def create_game_record(
 ):
     # Abuse prevention
     if record_in.clearTimeMs < 2000:
+        logger.warning(f"Suspicious record attempt: User {current_user.id} - {record_in.clearTimeMs}ms")
         raise HTTPException(status_code=400, detail="유효하지 않은 기록입니다.")
 
     # Capture user_id before commit to avoid MissingGreenlet error (lazy load after commit)
@@ -105,6 +113,8 @@ async def create_game_record(
     db.add(game_record)
     await db.commit()
     await db.refresh(game_record)
+    
+    logger.info(f"Game record created: User {user_id} - {record_in.clearTimeMs}ms")
 
     # Calculate rank using Redis
     from app.core.redis import redis_client
@@ -131,6 +141,7 @@ async def create_game_record(
         top_records = await redis_client.zrange("game_ranks", 0, 9, withscores=True)
         
         if top_records:
+            # ... (Logic remains same)
             # 2. Get User Details from DB
             user_ids = [int(uid) for uid, _ in top_records]
             
@@ -169,5 +180,6 @@ async def create_game_record(
                 })
             
             await sio.emit('ranking_update', ranking_list, namespace='/ranking')
+            logger.info(f"Ranking broadcast sent for User {user_id} (Rank {rank})")
 
     return {"success": True, "rank": rank}
